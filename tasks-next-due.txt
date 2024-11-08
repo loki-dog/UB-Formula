@@ -1,213 +1,226 @@
 lets(
-	dueProp, prop("Due"),
-	
-	recurIntervalProp, prop("Recur Interval"),
-	
-	recurUnitProp, prop("Recur Unit"),
-	
-	localizationKeyProp, prop("Localization Key"),
-	
-	emptyDate, parseDate(""),
-	
-	if(!empty(recurIntervalProp) and !empty(dueProp),
-		if(recurIntervalProp > 0 and recurIntervalProp == ceil(recurIntervalProp),
-			lets(
-				recurUnit,
-					ifs(
-						or(recurUnitProp == at(at(localizationKeyProp, 1), 0), recurUnitProp == "Day(s)"), "days",
-						or(recurUnitProp == at(at(localizationKeyProp, 1), 1), recurUnitProp == "Week(s)"), "weeks",
-						or(recurUnitProp == at(at(localizationKeyProp, 1), 2), recurUnitProp == "Month(s)"), "months",
-						or(recurUnitProp == at(at(localizationKeyProp, 1), 3), recurUnitProp == "Year(s)"), "years",
-						or(recurUnitProp == at(at(localizationKeyProp, 1), 4), recurUnitProp == "Month(s) on the Last Day"), "monthsonthelastday",
-						or(recurUnitProp == at(at(localizationKeyProp, 1), 5), recurUnitProp == "Month(s) on the First Weekday"), "monthsonthefirstweekday",
-						or(recurUnitProp == at(at(localizationKeyProp, 1), 6), recurUnitProp == "Month(s) on the Last Weekday"), "monthsonthelastweekday",
-						"days"
-					),
-				
-				weekdays,
-					match(
-						[
-							if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 1 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Monday")), 1, false),
-							if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 2 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Tuesday")), 2, false),
-							if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 3 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Wednesday")), 3, false),
-							if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 4 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Thursday")), 4, false),
-							if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 5 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Friday")), 5, false),
-							if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 6 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Saturday")), 6, false),
-							if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 7 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Sunday")), 7, false)
-						],
-						"[1-7]"
-					),
-				
-				dateDue, parseDate(formatDate(dueProp, "YYYY-MM-DD")),
-				
-				timeNow, now(),
-				
-				dateNow, parseDate(formatDate(timeNow, "YYYY-MM-DD")),
-				
-				hasRange, dateEnd(dueProp) > dateStart(dueProp),
-				
-				recurUnitLapseLength,
-					if(
-						includes(["days", "weeks", "months", "years"], recurUnit),
-						dateBetween(dateNow, dateDue, recurUnit) / recurIntervalProp,
-						false
-					),
-				
-				lastDayBaseDate,
-					if(
-						includes(["monthsonthelastday", "monthsonthefirstweekday", "monthsonthelastweekday"], recurUnit),
-						if(
-							year(dateNow) * 12 + month(dateNow) - (year(dateDue) * 12 + month(dateDue)) > 0,
-							dateSubtract(dateAdd(dateSubtract(dateAdd(dateDue, ceil((year(dateNow) * 12 + month(dateNow) - (year(dateDue) * 12 + month(dateDue))) / recurIntervalProp) * recurIntervalProp, "months"), date(dateAdd(dateDue, ceil((year(dateNow) * 12 + month(dateNow) - (year(dateDue) * 12 + month(dateDue))) / recurIntervalProp) * recurIntervalProp, "months")) - 1, "days"), 1, "months"), 1, "days"),
-							dateSubtract(dateAdd(dateSubtract(dateAdd(dateDue, recurIntervalProp, "months"), date(dateAdd(dateDue, recurIntervalProp, "months")) - 1, "days"), 1, "months"), 1, "days")
-						),
-						emptyDate
-					),
-				
-				firstDayBaseDate,
-					if(
-						lastDayBaseDate != emptyDate,
-						dateSubtract(lastDayBaseDate, date(lastDayBaseDate) - 1, "days"),
-						emptyDate
-					),
-				
-				firstWeekdayBaseDate,
-					if(
-						lastDayBaseDate != emptyDate,
-						if(
-							test(day(firstDayBaseDate), "6|7"), 
-							dateAdd(firstDayBaseDate, 8 - day(firstDayBaseDate), "days"),
-							firstDayBaseDate
-						),
-						emptyDate
-					),
-				
-				lastWeekdayBaseDate,
-					if(
-						lastDayBaseDate != emptyDate,
-						if(
-							test(day(lastDayBaseDate), "6|7"), 
-							dateSubtract(lastDayBaseDate, day(lastDayBaseDate) - 5, "days"),
-							lastDayBaseDate
-						),
-						emptyDate
-					),
-				
-				nextLastBaseDate,
-					if(
-						lastDayBaseDate != emptyDate,
-						dateSubtract(dateAdd(dateSubtract(dateAdd(lastDayBaseDate, recurIntervalProp, "months"), date(dateAdd(lastDayBaseDate, recurIntervalProp, "months")) - 1, "days"), 1, "months"), 1, "days"),
-						emptyDate
-					),
-				
-				nextFirstBaseDate,
-				if(
-					lastDayBaseDate != emptyDate,
-					dateSubtract(nextLastBaseDate, date(nextLastBaseDate) - 1, "days"),
-					emptyDate
-				),
-				
-				nextFirstWeekday,
-					if(
-						lastDayBaseDate != emptyDate,
-						if(
-							test(day(nextFirstBaseDate), "6|7"), 
-							dateAdd(nextFirstBaseDate, 8 - day(nextFirstBaseDate), "days"),
-							nextFirstBaseDate
-						),
-						emptyDate
-					),
-				
-				nextLastWeekday,
-					if(
-						lastDayBaseDate != emptyDate,
-						if(
-							test(day(nextLastBaseDate), "6|7"), 
-							dateSubtract(nextLastBaseDate, day(nextLastBaseDate) - 5, "days"),
-							nextLastBaseDate
-						),
-						emptyDate
-					),
-				
-				nextDueStart,
-					ifs(
-						recurUnit == "days" and length(weekdays) > 0 and recurIntervalProp == 1, 
-							if(
-								dateNow >= dateDue,
-								ifs(
-									includes(weekdays, format(day(dateAdd(dateNow, 1, "days")))), dateAdd(dateNow, 1, "days"),
-									includes(weekdays, format(day(dateAdd(dateNow, 2, "days")))), dateAdd(dateNow, 2, "days"),
-									includes(weekdays, format(day(dateAdd(dateNow, 3, "days")))), dateAdd(dateNow, 3, "days"),
-									includes(weekdays, format(day(dateAdd(dateNow, 4, "days")))), dateAdd(dateNow, 4, "days"),
-									includes(weekdays, format(day(dateAdd(dateNow, 5, "days")))), dateAdd(dateNow, 5, "days"),
-									includes(weekdays, format(day(dateAdd(dateNow, 6, "days")))), dateAdd(dateNow, 6, "days"),
-									includes(weekdays, format(day(dateAdd(dateNow, 7, "days")))), dateAdd(dateNow, 7, "days"),
-									emptyDate
-								),
-								ifs(
-									includes(weekdays, format(day(dateAdd(dateDue, 1, "days")))), dateAdd(dateDue, 1, "days"),
-									includes(weekdays, format(day(dateAdd(dateDue, 2, "days")))), dateAdd(dateDue, 2, "days"),
-									includes(weekdays, format(day(dateAdd(dateDue, 3, "days")))), dateAdd(dateDue, 3, "days"),
-									includes(weekdays, format(day(dateAdd(dateDue, 4, "days")))), dateAdd(dateDue, 4, "days"),
-									includes(weekdays, format(day(dateAdd(dateDue, 5, "days")))), dateAdd(dateDue, 5, "days"),
-									includes(weekdays, format(day(dateAdd(dateDue, 6, "days")))), dateAdd(dateDue, 6, "days"),
-									includes(weekdays, format(day(dateAdd(dateDue, 7, "days")))), dateAdd(dateDue, 7, "days"),
-									emptyDate
-								)
-							),
+    dueProp, prop("Due"),
+    
+    recurIntervalProp, prop("Recur Interval"),
+    
+    recurUnitProp, prop("Recur Unit"),
+    
+    localizationKeyProp, prop("Localization Key"),
+    
+    emptyDate, parseDate(""),
+    
+    if(!empty(recurIntervalProp) and !empty(dueProp),
+        if(recurIntervalProp > 0 and recurIntervalProp == ceil(recurIntervalProp),
+            lets(
+                recurUnit,
+                    ifs(
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 0), recurUnitProp == "Day(s)"), "days",
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 1), recurUnitProp == "Week(s)"), "weeks",
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 2), recurUnitProp == "Month(s)"), "months",
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 3), recurUnitProp == "Year(s)"), "years",
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 4), recurUnitProp == "Month(s) on the Last Day"), "monthsonthelastday",
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 5), recurUnitProp == "Month(s) on the First Weekday"), "monthsonthefirstweekday",
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 6), recurUnitProp == "Month(s) on the Last Weekday"), "monthsonthelastweekday",
+                        or(recurUnitProp == at(at(localizationKeyProp, 1), 7), recurUnitProp == "Quarterly"), "quarters",
+                        "days"
+                    ),
+                
+                weekdays,
+                    match(
+                        [
+                            if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 1 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Monday")), 1, false),
+                            if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 2 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Tuesday")), 2, false),
+                            if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 3 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Wednesday")), 3, false),
+                            if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 4 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Thursday")), 4, false),
+                            if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 5 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Friday")), 5, false),
+                            if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 6 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Saturday")), 6, false),
+                            if(or(includes(prop("Days (Only if Set to 1 Day(s))"), at(at(localizationKeyProp, 0), 7 - 1)), includes(prop("Days (Only if Set to 1 Day(s))"), "Sunday")), 7, false)
+                        ],
+                        "[1-7]"
+                    ),
+                
+                dateDue, parseDate(formatDate(dueProp, "YYYY-MM-DD")),
+                
+                timeNow, now(),
+                
+                dateNow, parseDate(formatDate(timeNow, "YYYY-MM-DD")),
+                
+                hasRange, dateEnd(dueProp) > dateStart(dueProp),
+                
+                recurUnitLapseLength,
+                    if(
+                        includes(["days", "weeks", "months", "years", "quarters"], recurUnit),
+                        if(recurUnit == "quarters",
+                            floor(dateBetween(dateNow, dateDue, "months") / 3) / recurIntervalProp,
+                            dateBetween(dateNow, dateDue, recurUnit) / recurIntervalProp
+                        ),
+                        false
+                    ),
+                
+                lastDayBaseDate,
+                    if(
+                        includes(["monthsonthelastday", "monthsonthefirstweekday", "monthsonthelastweekday"], recurUnit),
+                        if(
+                            year(dateNow) * 12 + month(dateNow) - (year(dateDue) * 12 + month(dateDue)) > 0,
+                            dateSubtract(dateAdd(dateSubtract(dateAdd(dateDue, ceil((year(dateNow) * 12 + month(dateNow) - (year(dateDue) * 12 + month(dateDue))) / recurIntervalProp) * recurIntervalProp, "months"), date(dateAdd(dateDue, ceil((year(dateNow) * 12 + month(dateNow) - (year(dateDue) * 12 + month(dateDue))) / recurIntervalProp) * recurIntervalProp, "months")) - 1, "days"), 1, "months"), 1, "days"),
+                            dateSubtract(dateAdd(dateSubtract(dateAdd(dateDue, recurIntervalProp, "months"), date(dateAdd(dateDue, recurIntervalProp, "months")) - 1, "days"), 1, "months"), 1, "days")
+                        ),
+                        emptyDate
+                    ),
+                
+                firstDayBaseDate,
+                    if(
+                        lastDayBaseDate != emptyDate,
+                        dateSubtract(lastDayBaseDate, date(lastDayBaseDate) - 1, "days"),
+                        emptyDate
+                    ),
+                
+                firstWeekdayBaseDate,
+                    if(
+                        lastDayBaseDate != emptyDate,
+                        if(
+                            test(day(firstDayBaseDate), "6|7"), 
+                            dateAdd(firstDayBaseDate, 8 - day(firstDayBaseDate), "days"),
+                            firstDayBaseDate
+                        ),
+                        emptyDate
+                    ),
+                
+                lastWeekdayBaseDate,
+                    if(
+                        lastDayBaseDate != emptyDate,
+                        if(
+                            test(day(lastDayBaseDate), "6|7"), 
+                            dateSubtract(lastDayBaseDate, day(lastDayBaseDate) - 5, "days"),
+                            lastDayBaseDate
+                        ),
+                        emptyDate
+                    ),
+                
+                nextLastBaseDate,
+                    if(
+                        lastDayBaseDate != emptyDate,
+                        dateSubtract(dateAdd(dateSubtract(dateAdd(lastDayBaseDate, recurIntervalProp, "months"), date(dateAdd(lastDayBaseDate, recurIntervalProp, "months")) - 1, "days"), 1, "months"), 1, "days"),
+                        emptyDate
+                    ),
+                
+                nextFirstBaseDate,
+                    if(
+                        lastDayBaseDate != emptyDate,
+                        dateSubtract(nextLastBaseDate, date(nextLastBaseDate) - 1, "days"),
+                        emptyDate
+                    ),
+                
+                nextFirstWeekday,
+                    if(
+                        lastDayBaseDate != emptyDate,
+                        if(
+                            test(day(nextFirstBaseDate), "6|7"), 
+                            dateAdd(nextFirstBaseDate, 8 - day(nextFirstBaseDate), "days"),
+                            nextFirstBaseDate
+                        ),
+                        emptyDate
+                    ),
+                
+                nextLastWeekday,
+                    if(
+                        lastDayBaseDate != emptyDate,
+                        if(
+                            test(day(nextLastBaseDate), "6|7"), 
+                            dateSubtract(nextLastBaseDate, day(nextLastBaseDate) - 5, "days"),
+                            nextLastBaseDate
+                        ),
+                        emptyDate
+                    ),
+                
+                nextDueStart,
+                    ifs(
+                        recurUnit == "days" and length(weekdays) > 0 and recurIntervalProp == 1, 
+                            if(
+                                dateNow >= dateDue,
+                                ifs(
+                                    includes(weekdays, format(day(dateAdd(dateNow, 1, "days")))), dateAdd(dateNow, 1, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateNow, 2, "days")))), dateAdd(dateNow, 2, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateNow, 3, "days")))), dateAdd(dateNow, 3, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateNow, 4, "days")))), dateAdd(dateNow, 4, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateNow, 5, "days")))), dateAdd(dateNow, 5, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateNow, 6, "days")))), dateAdd(dateNow, 6, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateNow, 7, "days")))), dateAdd(dateNow, 7, "days"),
+                                    emptyDate
+                                ),
+                                ifs(
+                                    includes(weekdays, format(day(dateAdd(dateDue, 1, "days")))), dateAdd(dateDue, 1, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateDue, 2, "days")))), dateAdd(dateDue, 2, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateDue, 3, "days")))), dateAdd(dateDue, 3, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateDue, 4, "days")))), dateAdd(dateDue, 4, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateDue, 5, "days")))), dateAdd(dateDue, 5, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateDue, 6, "days")))), dateAdd(dateDue, 6, "days"),
+                                    includes(weekdays, format(day(dateAdd(dateDue, 7, "days")))), dateAdd(dateDue, 7, "days"),
+                                    emptyDate
+                                )
+                            ),
 
-						recurUnit == "monthsonthelastday",
-							if(
-								dateNow >= lastDayBaseDate,
-								nextLastBaseDate,
-								lastDayBaseDate
-							),
-						
-						recurUnit == "monthsonthefirstweekday",
-							if(
-								dateNow >= firstWeekdayBaseDate,
-								nextFirstWeekday,
-								firstWeekdayBaseDate
-							),
-						
-						recurUnit == "monthsonthelastweekday",
-							if(
-								dateNow >= lastWeekdayBaseDate,
-								nextLastWeekday,
-								lastWeekdayBaseDate
-							),
-						
-						includes(["days", "weeks", "months", "years"], recurUnit), 
-							if(
-								dateBetween(dateNow, dateDue, "days") >= 1,
-								if(
-									recurUnitLapseLength == ceil(recurUnitLapseLength),
-									dateAdd(dateDue, (recurUnitLapseLength + 1) * recurIntervalProp, recurUnit),
-									dateAdd(dateDue, ceil(recurUnitLapseLength) * recurIntervalProp, recurUnit)
-								),
-								dateAdd(dateDue, recurIntervalProp, recurUnit)
-							),
+                        recurUnit == "monthsonthelastday",
+                            if(
+                                dateNow >= lastDayBaseDate,
+                                nextLastBaseDate,
+                                lastDayBaseDate
+                            ),
+                        
+                        recurUnit == "monthsonthefirstweekday",
+                            if(
+                                dateNow >= firstWeekdayBaseDate,
+                                nextFirstWeekday,
+                                firstWeekdayBaseDate
+                            ),
+                        
+                        recurUnit == "monthsonthelastweekday",
+                            if(
+                                dateNow >= lastWeekdayBaseDate,
+                                nextLastWeekday,
+                                lastWeekdayBaseDate
+                            ),
+                        
+                        includes(["days", "weeks", "months", "years", "quarters"], recurUnit), 
+                            if(
+                                dateBetween(dateNow, dateDue, "days") >= 1,
+                                if(
+                                    recurUnitLapseLength == ceil(recurUnitLapseLength),
+                                    if(recurUnit == "quarters",
+                                        dateAdd(dateDue, (recurUnitLapseLength + 1) * recurIntervalProp * 3, "months"),
+                                        dateAdd(dateDue, (recurUnitLapseLength + 1) * recurIntervalProp, recurUnit)
+                                    ),
+                                    if(recurUnit == "quarters",
+                                        dateAdd(dateDue, ceil(recurUnitLapseLength) * recurIntervalProp * 3, "months"),
+                                        dateAdd(dateDue, ceil(recurUnitLapseLength) * recurIntervalProp, recurUnit)
+                                    )
+                                ),
+                                if(recurUnit == "quarters",
+                                    dateAdd(dateDue, recurIntervalProp * 3, "months"),
+                                    dateAdd(dateDue, recurIntervalProp, recurUnit)
+                                )
+                            ),
 
-						emptyDate
-					),
-				
-				recurRange, dateBetween(nextDueStart, dateDue, "days"),
-				
-				timeNextDueStart, dateAdd(dateStart(dueProp), recurRange, "days"),
-				
-				timeNextDueEnd, dateAdd(dateEnd(dueProp), recurRange, "days"),
-				
-				nextDue,
-					if(
-						hasRange,
-						dateRange(timeNextDueStart, timeNextDueEnd),
-						timeNextDueStart
-					),
-				
-				nextDue
-			),
-			dueProp
-		),
-		emptyDate
-	)
+                        emptyDate
+                    ),
+                
+                recurRange, dateBetween(nextDueStart, dateDue, "days"),
+                
+                timeNextDueStart, dateAdd(dateStart(dueProp), recurRange, "days"),
+                
+                timeNextDueEnd, dateAdd(dateEnd(dueProp), recurRange, "days"),
+                
+                nextDue,
+                    if(
+                        hasRange,
+                        dateRange(timeNextDueStart, timeNextDueEnd),
+                        timeNextDueStart
+                    ),
+                
+                nextDue
+            ),
+            dueProp
+        ),
+        emptyDate
+    )
 )
